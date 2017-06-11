@@ -152,7 +152,7 @@
 
 /* Code block bootstrap override */
 
-pre {
+.GuildEditor-editor pre {
   border: 0; 
   padding: 0;
   background-color: transparent;
@@ -168,3 +168,116 @@ pre {
 /*.public-DraftStyleDefault-block > span {
   display: inline-block;
 }*/
+
+
+.times { font-family: 'Times New Roman', Times, serif; }
+.comic-sans { font-family: 'Comic Sans MS', cursive, sans-serif; }
+.courier { font-family: 'Courier New', Courier, monospace; }
+
+.red1 { color: #f7976a; }
+.orangered1 { color: #f9ad81; }
+.orange1 { color: #fdc68a; }
+.yellow1 { color: #fff79a; }
+.lime1 { color: #c4df9b; }
+.green1 { color: #a2d39c; }
+.forest1 { color: #82ca9d; }
+.teal1 { color: #7bcdc8; }
+.sky1 { color: #6ecff6; }
+.blue1 { color: #7ea7d8; }
+.navy1 { color: #8493ca; }
+.indigo1 { color: #8882be; }
+.bluepurple1 { color: #a187be; }
+.purple1 { color: #bc8dbf; }
+.pink1 { color: #f49ac2; }
+.redpink1 { color: #f6989d; }
+.red2 { color: #ed1c24; }
+.orangered2 { color: #f26522; }
+.orange2 { color: #f7941d; }
+.yellow2 { color: #fff200; }
+.lime2 { color: #8dc73f; }
+.green2 { color: #39b54a; }
+.forest2 { color: #00a651; }
+.teal2 { color: #00a99d; }
+.sky2 { color: #00aeef; }
+.blue2 { color: #0072bc; }
+.navy2 { color: #0054a6; }
+.indigo2 { color: #2e3192; }
+.bluepurple2 { color: #662d91; }
+.purple2 { color: #92278f; }
+.pink2 { color: #ec008c; }
+.redpink2 { color: #ed145b; }
+.red3 { color: #9e0b0f; }
+.orangered3 { color: #a0410d; }
+.orange3 { color: #a36209; }
+.yellow3 { color: #aba000; }
+.lime3 { color: #598527; }
+.green3 { color: #1a7b30; }
+.forest3 { color: #007236; }
+.teal3 { color: #00746b; }
+.sky3 { color: #0076a3; }
+.blue3 { color: #004b80; }
+.navy3 { color: #003471; }
+.indigo3 { color: #1b1464; }
+.bluepurple3 { color: #440e62; }
+.purple3 { color: #630460; }
+.pink3 { color: #9e005d; }
+.redpink3 { color: #9e0039; }
+
+/* Don't show inline styles in code blocks */
+
+pre .times,
+pre .comic-sans,
+pre .courier {
+  font-family: inherit;
+}
+
+pre .red1,
+pre .orangered1,
+pre .orange1,
+pre .yellow1,
+pre .lime1,
+pre .green1,
+pre .forest1,
+pre .teal1,
+pre .sky1,
+pre .blue1,
+pre .navy1,
+pre .indigo1,
+pre .bluepurple1,
+pre .purple1,
+pre .pink1,
+pre .redpink1,
+pre .red2,
+pre .orangered2,
+pre .orange2,
+pre .yellow2,
+pre .lime2,
+pre .green2,
+pre .forest2,
+pre .teal2,
+pre .sky2,
+pre .blue2,
+pre .navy2,
+pre .indigo2,
+pre .bluepurple2,
+pre .purple2,
+pre .pink2,
+pre .redpink2,
+pre .red3,
+pre .orangered3,
+pre .orange3,
+pre .yellow3,
+pre .lime3,
+pre .green3,
+pre .forest3,
+pre .teal3,
+pre .sky3,
+pre .blue3,
+pre .navy3,
+pre .indigo3,
+pre .bluepurple3,
+pre .purple3,
+pre .pink3,
+pre .redpink3 {
+  color: inherit !important;
+}

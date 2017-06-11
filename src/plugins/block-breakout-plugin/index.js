@@ -71,6 +71,8 @@ export default function blockBreakoutPlugin (options = {}) {
           const atEndOfBlock = (endOffset === currentBlock.getLength())
           const atStartOfBlock = (endOffset === 0)
 
+          console.log(`[breakout] endOfBlock=${atEndOfBlock} startOfBlock=${atStartOfBlock}`)
+
           // Check we’re at the start/end of the current block
           if ((atEndOfBlock && isSingleBreakoutBlock) || (atStartOfBlock && isSingleBreakoutBlock) || (atStartOfBlock && !currentBlock.getLength())) {
             const emptyBlockKey = genKey()
@@ -134,6 +136,7 @@ export default function blockBreakoutPlugin (options = {}) {
             setEditorState(
               EditorState.push(editorState, newContentState, 'split-block')
             )
+            console.log('[handlerReturn] block breakout handled')
             return 'handled'
           }
         }

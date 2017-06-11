@@ -1,6 +1,6 @@
 import I from 'immutable'
 import React from 'react'
-import {ButtonGroup, Button} from 'react-bootstrap'
+import {ButtonGroup, Button, Panel} from 'react-bootstrap'
 import PropTypes from 'prop-types'
 import Autolinker from 'autolinker'
 import modifyInlineStyles from './util/modifyInlineStyles'
@@ -14,12 +14,15 @@ import Draft, {
   Modifier,
   CompositeDecorator
 } from 'draft-js'
-import CodeUtils from 'draft-js-code'
 import './Draft.css'
 import './GuildEditor.css'
 import arrayChunk from 'array.chunk'
 import belt from './belt'
+import toAst from 'draft-js-ast-exporter'
+import pretty from 'pretty'
+import astToHtml from './astToHtml'
 import createBlockBreakoutPlugin from './plugins/block-breakout-plugin'
+import createCodePlugin from './plugins/code-plugin'
 
 import Perf from 'react-addons-perf'
 React.addons = {}
@@ -46,10 +49,44 @@ const BtnGroup = (props) => {
   )
 }
 
+class Quote extends React.Component {
+  static propTypes = {
+    children: PropTypes.node,
+    uname: PropTypes.string
+  }
+
+  render () {
+    const {uname, children} = this.props
+
+    const footer = uname
+      ? <footer>uname</footer>
+      : null
+
+    return (
+      <div className='abc'>
+        {children}
+        {footer}
+      </div>
+    )
+  }
+}
+
 const blockRendererFn = (contentBlock) => {
+  // switch (contentBlock.getType()) {
+  //   case 'quote':
+  //     console.log(contentBlock.toJS())
+  //     return {
+  //       component: Quote
+  //     }
+  // }
 }
 
 const blockRenderMap = DefaultDraftBlockRenderMap.merge(I.Map({
+  'quote-child': {
+    element: 'div',
+    // wrapper: React.createElement('blockquote', { className: 'quote' })
+    wrapper: Quote
+  }
 }))
 
 const blockStyleFn = (block) => {
@@ -102,90 +139,109 @@ class StyleButton extends React.PureComponent {
 
 /// //////////////////////////////////////////////
 
-const makeHandleKeyCommand = ({getEditorState, onChange}) => (command) => {
-  console.log(`[handleKeyCommand] comment=`, command)
-  let newState
+const makeHandleKeyCommand = ({ getEditorState, onChange }) => {
+  const codePlugin = createCodePlugin({getEditorState, setEditorState: onChange})
 
-  const editorState = getEditorState()
+  return (command) => {
+    // console.log(`[handleKeyCommand] command=${command}`)
+    if (codePlugin.handleKeyCommand(command) === 'handled') {
+      return 'handled'
+    }
 
-  if (CodeUtils.hasSelectionInBlock(editorState)) {
-    newState = CodeUtils.handleKeyCommand(editorState, command)
+    return 'not-handled'
   }
-
-  if (!newState) {
-    newState = RichUtils.handleKeyCommand(editorState, command)
-  }
-
-  if (newState) {
-    onChange(newState)
-    return 'handled'
-  }
-
-  return 'not-handled'
 }
 
 // e is SyntheticKeyboardEvent, returns string
-const makeKeyBindingFn = ({getEditorState}) => (e) => {
-  console.log(`[keyBindingFn]`)
-  const editorState = getEditorState()
-  let command
+const makeKeyBindingFn = ({getEditorState}) => {
+  const codePlugin = createCodePlugin({getEditorState})
 
-  if (CodeUtils.hasSelectionInBlock(editorState)) {
-    command = CodeUtils.getKeyBinding(e)
-  }
-  if (command) {
-    return command
-  }
+  return (e) => {
+    // console.log(`[keyBindingFn]`)
+    let command
 
-  return Draft.getDefaultKeyBinding(e)
+    command = codePlugin.keyBindingFn(e)
+    if (command) return command
+
+    return Draft.getDefaultKeyBinding(e)
+  }
 }
 
 const makeHandleReturn = ({ getEditorState, onChange }) => {
-  // FIXME: This temp hack only works since blockBreakoutPlugin defines
-  // this single handler. Would be annoying to do this manually for plugins
-  // that may have multiple hooks. But I don't want to use draft-js-plugin-editor
-  // yet.
   const blockBreakoutPlugin = createBlockBreakoutPlugin({getEditorState, setEditorState: onChange})
+  const codePlugin = createCodePlugin({getEditorState, setEditorState: onChange})
 
   return (e) => {
-    console.log(`[handleReturn]`)
-    const editorState = getEditorState()
+    // console.log(`[handleReturn]`)
 
     if (blockBreakoutPlugin.handleReturn(e) === 'handled') {
       return 'handled'
     }
 
-    if (!CodeUtils.hasSelectionInBlock(editorState)) {
-      return 'not-handled'
+    if (codePlugin.handleReturn(e) === 'handled') {
+      return 'handled'
     }
 
-    onChange(CodeUtils.handleReturn(e, editorState))
-    return 'handled'
-  }
-}
+    // if we are in blockquote, insert osft newline
+    // const editorState = getEditorState()
+    // if (RichUtils.getCurrentBlockType(editorState) === 'blockquote') {
+    //   onChange(
+    //     RichUtils.insertSoftNewline(
+    //       editorState
+    //     )
+    //   )
+    //   return 'handled'
+    // }
 
-const makeHandleTab = ({getEditorState, onChange}) => (e) => {
-  console.log(`[handleTab]`)
-  const editorState = getEditorState()
-
-  if (!CodeUtils.hasSelectionInBlock(editorState)) {
     return 'not-handled'
   }
-
-  onChange(CodeUtils.handleTab(e, editorState))
-  return 'handled'
 }
 
-const makeHandlePastedText = ({getEditorState, onChange}) => (text, html) => {
-  console.log(`[handlePaste]`)
-  let editorState = getEditorState()
+const makeHandleTab = ({ getEditorState, onChange }) => {
+  const codePlugin = createCodePlugin({getEditorState, setEditorState: onChange})
 
-  if (!CodeUtils.hasSelectionInBlock(editorState)) {
-    return
+  return (e) => {
+    // console.log(`[handleTab]`)
+
+    if (codePlugin.onTab(e) === 'handled') {
+      return 'handled'
+    }
+
+    const editorState = getEditorState()
+
+    if (['ordered-list-item', 'unordered-list-item'].includes(RichUtils.getCurrentBlockType(editorState))) {
+      onChange(RichUtils.onTab(e, editorState, 2))
+      return 'handled'
+    }
+
+    return 'not-handled'
   }
+}
 
-  onChange(CodeUtils.handlePastedText(editorState, text, html))
-  return true
+const makeHandlePastedText = ({ getEditorState, onChange }) => {
+  const codePlugin = createCodePlugin({getEditorState, setEditorState: onChange})
+
+  return (text, html) => {
+    // console.log(`[handlePaste]`, text, html)
+
+    if (codePlugin.handlePastedText(text, html) === 'handled') {
+      return 'handled'
+    }
+
+    return 'not-handled'
+  }
+}
+
+const makeOnUpArrow = ({getEditorState, onChange}) => {
+  const codePlugin = createCodePlugin({getEditorState, setEditorState: onChange})
+
+  return (e) => {
+    if (codePlugin.onUpArrow(e) === 'handled') {
+      return 'handled'
+    }
+
+    return 'not-handled'
+  }
 }
 
 const Link = (props) => {
@@ -204,7 +260,7 @@ class GuildEditor extends React.Component {
   constructor (props) {
     super(props)
 
-    const autolinker = new Autolinker({
+    this.autolinker = new Autolinker({
       email: false,
       hashtag: false,
       mention: false,
@@ -216,7 +272,7 @@ class GuildEditor extends React.Component {
       {
         strategy: (contentBlock, callback, contentState) => {
           const text = contentBlock.getText()
-          const matches = autolinker.parse(text)
+          const matches = this.autolinker.parse(text)
           // Ignore links in code blocks
           if (contentBlock.getType() === 'code-block') {
             return false
@@ -267,12 +323,14 @@ class GuildEditor extends React.Component {
   }
 
   _toggleBlockType (blockType) {
-    console.log(`toggleBlockType`, blockType)
+    let newEditorState = RichUtils.toggleBlockType(
+      this.state.editorState,
+      blockType
+    )
+
+    // console.log(`toggleBlockType`, blockType)
     this.onChange(
-      RichUtils.toggleBlockType(
-        this.state.editorState,
-        blockType
-      )
+      newEditorState
     )
   }
 
@@ -286,7 +344,7 @@ class GuildEditor extends React.Component {
 
   // like toggleInlineStyle except it clears any other colors first
   _toggleInlineColor (newHex) {
-    console.log(`toggleInlineColor] newHex=${newHex}`)
+    // console.log(`toggleInlineColor] newHex=${newHex}`)
     const {editorState} = this.state
     const selectionState = editorState.getSelection()
     const currBlock = getCurrentBlock(editorState)
@@ -311,7 +369,7 @@ class GuildEditor extends React.Component {
     let newContentState = modifyInlineStyles(
       editorState.getCurrentContent(),
       selectionState,
-      COLORS,
+      COLOR_KEYS,
       false
     )
 
@@ -378,6 +436,10 @@ class GuildEditor extends React.Component {
       className = ' GuildEditor-showBlockBorders'
     }
 
+    const ast = toAst(this.state.editorState)
+    const html = pretty(astToHtml(ast, {styleMap})) || '--Nothing--'
+    const htmlWithAutolinks = pretty(astToHtml(ast, {styleMap, autolinker: this.autolinker})) || '--Nothing--'
+
     return (
       <div className={className}>
         {this.state.showColorPicker
@@ -411,6 +473,7 @@ class GuildEditor extends React.Component {
             keyBindingFn={makeKeyBindingFn({getEditorState: () => this.state.editorState})}
             handleKeyCommand={makeHandleKeyCommand({getEditorState: () => this.state.editorState, onChange: this.onChange})}
             handlePastedText={makeHandlePastedText({getEditorState: () => this.state.editorState, onChange: this.onChange})}
+            onUpArrow={makeOnUpArrow({onChange: this.onChange, getEditorState: () => this.state.editorState})}
             placeholder=''
           />
         </div>
@@ -419,7 +482,27 @@ class GuildEditor extends React.Component {
           showBlockBorders={this.state.showBlockBorders}
           onBlockBordersToggle={() => this.setState({showBlockBorders: !this.state.showBlockBorders})}
         />
-        <pre>{jsonString}</pre>
+
+        <ul>
+          <li>tab and shift-tab will indent/unindent list levels</li>
+          <li>cmd-enter to break out of code block</li>
+        </ul>
+
+        <Panel header='Rendered' style={{marginTop: '15px'}}>
+          <div dangerouslySetInnerHTML={{__html: htmlWithAutolinks}} />
+        </Panel>
+
+        <Panel header='HTML'>
+          <pre>{html}</pre>
+        </Panel>
+
+        <Panel header='Abstract Syntax Tree'>
+          <pre>{JSON.stringify(ast, null, 2)}</pre>
+        </Panel>
+
+        <Panel header='Draft.js Represenation'>
+          <pre>{jsonString}</pre>
+        </Panel>
       </div>
     )
   }
@@ -484,7 +567,9 @@ const SelectionDebug = (props) => {
 const LIST_STYLES = [
   { label: 'UL', style: 'unordered-list-item' },
   { label: 'OL', style: 'ordered-list-item' },
-  { label: 'Code', style: 'code-block', fa: 'code' }
+  { label: 'Code', style: 'code-block', fa: 'code' },
+  { label: 'Quote', style: 'quote-child' }// fa: 'code' }
+  // { label: 'Quote', style: 'blockquote' }// fa: 'code' }
 ]
 
 class ListStyleControls extends React.PureComponent {
@@ -506,11 +591,13 @@ class ListStyleControls extends React.PureComponent {
               e.preventDefault()
               this.props.onToggle(style)
             }
+            const active = currentBlock.getType() === style
             return (
               <Button
                 key={style}
                 onMouseDown={onMouseDown}
-                active={currentBlock.getType() === style}
+                active={active}
+                bsStyle={active ? 'primary' : 'default'}
               >
                 {fa ? <i className={`fa fa-${fa}`} /> : label}
               </Button>
@@ -567,9 +654,9 @@ class SizeStyleControls extends React.PureComponent {
 // Fertigo: https://www.fonts.com/font/exljbris/fertigo?QueryFontType=Web&src=GoogleWebFonts
 const FONTS = [
   // SAFE WEB FONTS
-  { family: 'Times', full: '"Times New Roman", Times, serif' },
-  { family: 'Comic Sans', full: '"Comic Sans MS", cursive, sans-serif' },
-  { family: 'Courier', full: '"Courier New", Courier, monospace' }
+  { family: 'Times', full: `'Times New Roman', Times, serif` },
+  { family: 'Comic Sans', full: `'Comic Sans MS', cursive, sans-serif` },
+  { family: 'Courier', full: `'Courier New', Courier, monospace` }
   // GOOGLE
   // <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
   // { family: 'Lato', full: '"Lato", sans-serif' },
@@ -618,25 +705,94 @@ class FontStyleControls extends React.PureComponent {
 
 // ////////////////////////////////////////////////////////
 
-const COLORS = [
-  // Pastel
-  'f7976a', 'f9ad81', 'fdc68a', 'fff79a',
-  'c4df9b', 'a2d39c', '82ca9d', '7bcdc8',
-  '6ecff6', '7ea7d8', '8493ca', '8882be',
-  'a187be', 'bc8dbf', 'f49ac2', 'f6989d',
-  // Full
-  'ed1c24', 'f26522', 'f7941d', 'fff200',
-  '8dc73f', '39b54a', '00a651', '00a99d',
-  '00aeef', '0072bc', '0054a6', '2e3192',
-  '662d91', '92278f', 'ec008c', 'ed145b',
-  // Dark
-  '9e0b0f', 'a0410d', 'a36209', 'aba000',
-  '598527', '1a7b30', '007236', '00746b',
-  '0076a3', '004b80', '003471', '1b1464',
-  '440e62', '630460', '9e005d', '9e0039'
-]
+// const COLORS = [
+//   // Pastel
+//   // 'f7976a', 'f9ad81', 'fdc68a', 'fff79a',
+//   'red1', 'orangered1', 'orange1', 'yellow1',
+//   // 'c4df9b', 'a2d39c', '82ca9d', '7bcdc8',
+//   'lime1', 'green1', 'forest1', 'teal1',
+//   // '6ecff6', '7ea7d8', '8493ca', '8882be',
+//   'sky1', 'blue1', 'navy1', 'indigo1',
+//   // 'a187be', 'bc8dbf', 'f49ac2', 'f6989d',
+//   'bluepurple1', 'purple1', 'pink1', 'redpink1',
+//   // Full
+//   // 'ed1c24', 'f26522', 'f7941d', 'fff200',
+//   'red2', 'orangered2', 'orange2', 'yellow2',
+//   // '8dc73f', '39b54a', '00a651', '00a99d',
+//   'lime2', 'green2', 'forest2', 'teal2',
+//   // '00aeef', '0072bc', '0054a6', '2e3192',
+//   'sky2', 'blue2', 'navy2', 'indigo2',
+//   // '662d91', '92278f', 'ec008c', 'ed145b',
+//   'bluepurple2', 'purple2', 'pink2', 'redpink2',
+//   // Dark
+//   // '9e0b0f', 'a0410d', 'a36209', 'aba000',
+//   'red3', 'orangered3', 'orange3', 'yellow3',
+//   // '598527', '1a7b30', '007236', '00746b',
+//   'lime3', 'green3', 'forest3', 'teal3',
+//   // '0076a3', '004b80', '003471', '1b1464',
+//   'sky3', 'blue3', 'navy3', 'indigo3',
+//   // '440e62', '630460', '9e005d', '9e0039'
+//   'bluepurple3', 'purple3', 'pink3', 'redpink3'
+// ]
 
-const COLOR_ROWS = arrayChunk(COLORS, 16)
+const COLORS = {
+  red1: 'f7976a',
+  orangered1: 'f9ad81',
+  orange1: 'fdc68a',
+  yellow1: 'fff79a',
+  lime1: 'c4df9b',
+  green1: 'a2d39c',
+  forest1: '82ca9d',
+  teal1: '7bcdc8',
+  sky1: '6ecff6',
+  blue1: '7ea7d8',
+  navy1: '8493ca',
+  indigo1: '8882be',
+  bluepurple1: 'a187be',
+  purple1: 'bc8dbf',
+  pink1: 'f49ac2',
+  redpink1: 'f6989d',
+  red2: 'ed1c24',
+  orangered2: 'f26522',
+  orange2: 'f7941d',
+  yellow2: 'fff200',
+  lime2: '8dc73f',
+  green2: '39b54a',
+  forest2: '00a651',
+  teal2: '00a99d',
+  sky2: '00aeef',
+  blue2: '0072bc',
+  navy2: '0054a6',
+  indigo2: '2e3192',
+  bluepurple2: '662d91',
+  purple2: '92278f',
+  pink2: 'ec008c',
+  redpink2: 'ed145b',
+  red3: '9e0b0f',
+  orangered3: 'a0410d',
+  orange3: 'a36209',
+  yellow3: 'aba000',
+  lime3: '598527',
+  green3: '1a7b30',
+  forest3: '007236',
+  teal3: '00746b',
+  sky3: '0076a3',
+  blue3: '004b80',
+  navy3: '003471',
+  indigo3: '1b1464',
+  bluepurple3: '440e62',
+  purple3: '630460',
+  pink3: '9e005d',
+  redpink3: '9e0039'
+}
+
+const COLOR_KEYS = Object.keys(COLORS)
+
+const COLOR_ROWS = arrayChunk(Object.keys(COLORS), 16).map((keys) => {
+  const obj = {}
+  keys.forEach((k) => { obj[k] = COLORS[k] })
+  return obj
+})
 
 const ColorSwatch = (props) => {
   const {x, y, side, active, hex} = props
@@ -696,16 +852,16 @@ class ColorPicker extends React.PureComponent {
 
     return (
       <div className='ColorPicker'>
-        {COLOR_ROWS.map((colors, y) => {
+        {COLOR_ROWS.map((obj, y) => {
           return (
-            <div key={colors[0]} className='ColorPicker-colorRow'>
-              {colors.map((hex, x) => {
-                const onToggle = () => this.props.onToggle(hex)
-                const active = currentStyle.has(hex)
+            <div key={Object.keys(obj)[0]} className='ColorPicker-colorRow'>
+              {Object.entries(obj).map(([colorName, hex], x) => {
+                const onToggle = () => this.props.onToggle(colorName)
+                const active = currentStyle.has(colorName)
                 const side = active ? 30 : 20
                 return (
                   <ColorSwatch
-                    key={hex}
+                    key={colorName}
                     hex={hex}
                     onToggle={onToggle}
                     active={active}
@@ -825,7 +981,7 @@ const HistoryControls = (props) => {
 
   return (
     <div className='HistoryControls'>
-      <BtnGroup>
+      <ButtonGroup>
         {HISTORY_ITEMS.map(({label, key, fa}) => {
           const onClick = (e) => {
             e.preventDefault()
@@ -834,13 +990,20 @@ const HistoryControls = (props) => {
               case 'REDO': return onChange(EditorState.redo(editorState))
             }
           }
+
+          let disabled = false
+          switch (key) {
+            case 'UNDO': disabled = editorState.getUndoStack().size === 0; break
+            case 'REDO': disabled = editorState.getRedoStack().size === 0; break
+          }
+
           return (
-            <span key={key} onClick={onClick} className='btn btn-default btn-sm'>
+            <Button key={key} onMouseDown={onClick} disabled={disabled}>
               <i className={`fa fa-${fa}`} /> {label}
-            </span>
+            </Button>
           )
         })}
-      </BtnGroup>
+      </ButtonGroup>
     </div>
   )
 }
@@ -856,7 +1019,7 @@ const INLINE_STYLES = [
   { label: 'Bold', style: 'BOLD', fa: 'bold' },
   { label: 'Italic', style: 'ITALIC', fa: 'italic' },
   { label: 'Underline', style: 'UNDERLINE', fa: 'underline' },
-  { label: 'Strike', style: 'STRIKE', fa: 'strikethrough' }
+  { label: 'Strike', style: 'STRIKETHROUGH', fa: 'strikethrough' }
 ]
 
 const InlineStyleControls = (props) => {
@@ -890,12 +1053,8 @@ InlineStyleControls.propTypes = {
 
 const styleMap = {}
 
-styleMap['STRIKE'] = {
-  textDecoration: 'line-through'
-}
-
-COLORS.forEach((hex) => {
-  styleMap[hex] = { color: `#${hex}` }
+Object.entries(COLORS).forEach(([key, hex]) => {
+  styleMap[key] = { color: `#${hex}` }
 })
 
 FONTS.forEach((font) => {
