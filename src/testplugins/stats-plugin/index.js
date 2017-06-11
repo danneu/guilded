@@ -1,6 +1,6 @@
 
-import React, {Component} from 'react'
-import PropTypes from 'prop-types'
+import React from 'react'
+import Store from '../store'
 
 const Stats = (props) => {
   const {blockCount} = props
@@ -12,35 +12,17 @@ const Stats = (props) => {
   )
 }
 
-const editorToProps = (WrappedComponent, xform) => class extends Component {
-  static propTypes = {
-    editorState: PropTypes.object.isRequired
-  }
+export default (config = {}) => {
+  const store = new Store({
+    blockCount: 1
+  })
 
-  render () {
-    return (
-      <WrappedComponent {...xform(this.props.editorState)} />
-    )
-  }
-}
-
-const createStatsPlugin = (config = {}) => {
   return {
-    // initialize: ({getEditorState}) => {
-    // },
-    // onChange: (editorState) => {
-    //   store.blockCount = editorState.getCurrentContent().getBlockMap().size
-    //   console.log('stats onchange', store.blockCount)
-    //   return editorState
-    // },
-
+    onChange: (editorState) => {
+      const blockCount = editorState.getCurrentContent().getBlockMap().size
+      store.setState({ blockCount })
+    },
     // Components
-    // Stats: <Stats store={store} /> // decorate(Stats, {store})
-    // Stats: decorate(Stats, {store})
-    Stats: editorToProps(Stats, (editorState) => ({
-      blockCount: editorState.getCurrentContent().getBlockMap().size
-    }))
+    Stats: store.withSubs(Stats, ['blockCount'])
   }
 }
-
-export default createStatsPlugin

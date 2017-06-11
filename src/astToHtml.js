@@ -1,16 +1,16 @@
 
 const isList = (type) => ['unordered-list-item', 'ordered-list-item'].includes(type)
-const hyphenate = (s) => s.replace(/([A-Z])/g, (g) => `-${g[0].toLowerCase()}`)
 
 // opts is {styleMap = {}, autolinker, depth = 0}
-function astToHtml (ast = [], opts) {
-  const {depth = 0, styleMap = {}} = opts
+export default function astToHtml (ast = [], opts) {
+  const {depth = 0} = opts
   // return ast.map((node) => renderBlock(node, lists))
   const html = []
   let listNodes = []
 
-  ast.forEach(([blockOrInline, args]) => {
-    if (blockOrInline === 'inline') {
+  // nodeType is inline | block | entity
+  ast.forEach(([nodeType, args]) => {
+    if (nodeType === 'inline') {
       const [styles, text] = args
       html.push(styles.reduce((html, style) => {
         switch (style) {
@@ -26,6 +26,11 @@ function astToHtml (ast = [], opts) {
             return `<span class="${style}">${html}</span>`
         }
       }, escapeHtml(text)))
+      return
+    }
+
+    // Ignore entities for now
+    if (nodeType === 'entity') {
       return
     }
 
@@ -146,70 +151,7 @@ function renderList (listNodes, opts) {
   return html.join('')
 }
 
-// function findListBounds (ast) {
-//   const isList = ({type}) => ['unordered-list-item', 'ordered-list-item'].includes(type)
-//   const ulStartKeys = new Set()
-//   const ulEndKeys = new Set()
-//   const olStartKeys = new Set()
-//   const olEndKeys = new Set()
-//   const stack = []
-//   let prevNode = {type: null, key: null} // { type, key }
-
-//   ast.forEach(([_, [type, key]]) => {
-//     const currNode = {type, key}
-//     // Changing types
-//     if (isList(currNode) && prevNode.type !== currNode.type) {
-//       // Starting new list
-//       ulStartKeys.add(currNode.key)
-//       // If prevnode was a list, the other list must have ended
-//       if (isList(prevNode)) {
-//         olEndKeys.add(prevNode.key)
-//       }
-//     }
-
-//     prevNode = currNode
-//   })
-
-//   return {ulStartKeys, ulEndKeys, olStartKeys, olEndKeys}
-// }
-
-// const renderInline = ([_, [styles, text]]) => {
-//   return styles.reduce((html, style) => {
-//     switch (style) {
-//       case 'UNDERLINE': return `<u>${html}</u>`
-//       case 'BOLD': return `<b>${html}</b>`
-//       case 'ITALIC': return `<i>${html}</i>`
-//       case 'STRIKE': return `<s>${html}</s>`
-//       default:
-//         console.error('unexpected style ' + style)
-//     }
-//   }, text)
-// }
-
-// const renderers = {
-//   'unstyled': (kids) => {
-//     return `<div>${kids.map(renderInline).join('')}</div>`
-//   },
-//   'unordered-list-item': (kids, lists) => {
-//     let html = ''
-//     html += `<li>${kids.map(renderInline).join('')}</li>`
-//     return html
-//   }
-// }
-
-// // possible kids:
-// // ["inline", [[...styles], text]]
-// // ["block", [type, key, [...kids]]]
-// function renderBlock ([_, [type, key, [...kids]]], lists) {
-//   // return {type, key, kids}
-//   const renderer = renderers[type]
-//   if (!renderer) return ''
-//   return renderer(kids, lists)
-// }
-
-export default astToHtml
-
-var entityMap = {
+const entityMap = {
   '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',

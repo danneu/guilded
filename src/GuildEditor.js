@@ -21,6 +21,7 @@ import belt from './belt'
 import toAst from 'draft-js-ast-exporter'
 import pretty from 'pretty'
 import astToHtml from './astToHtml'
+import {getCurrentBlock} from './draft-js-extra'
 import createBlockBreakoutPlugin from './plugins/block-breakout-plugin'
 import createCodePlugin from './plugins/code-plugin'
 
@@ -28,13 +29,6 @@ import Perf from 'react-addons-perf'
 React.addons = {}
 React.addons.Perf = Perf
 window.React = React
-
-function getCurrentBlock (editorState) {
-  const contentState = editorState.getCurrentContent()
-  const selectionState = editorState.getSelection()
-  console.assert(selectionState.getStartKey())
-  return contentState.getBlockForKey(selectionState.getStartKey())
-}
 
 I.OrderedSet.prototype.hasAny = function (xs) {
   return xs.some((v) => this.has(v))

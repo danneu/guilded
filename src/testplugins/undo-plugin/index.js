@@ -1,54 +1,72 @@
-import React, {Component} from 'react'
+import React from 'react'
 import PropTypes from 'prop-types'
 import {EditorState} from 'draft-js'
 
-const editorToProps = (WrappedComponent, xform) => class extends Component {
-  static propTypes = {
-    editorState: PropTypes.object.isRequired
-  }
-
-  render () {
-    return (
-      <WrappedComponent {...xform(this.props.editorState)} />
-    )
-  }
-}
+import Store from '../store'
 
 const UndoButton = (props) => {
-  console.log('undo', props)
-  const {undoStackSize, onClick} = props
+  const {undoStackSize: stackSize, onClick, children} = props
   return (
-    <button className='UndoButton' disabled={undoStackSize === 0} onClick={onClick}>
-      Undo
+    <button className='UndoButton' disabled={stackSize === 0} onClick={onClick}>
+      {children || <span>Undo {stackSize}</span>}
     </button>
   )
 }
 
+const RedoButton = (props) => {
+  const {redoStackSize: stackSize, onClick, children} = props
+  return (
+    <button className='RedoButton' disabled={stackSize === 0} onClick={onClick}>
+      {children || <span>Redo {stackSize}</span>}
+    </button>
+  )
+}
+
+const commonPropTypes = {
+  onClick: PropTypes.func.isRequired,
+  children: PropTypes.node
+}
+
 UndoButton.propTypes = {
   undoStackSize: PropTypes.number.isRequired,
-  onClick: PropTypes.func // .isRequired
+  ...commonPropTypes
+}
+
+RedoButton.propTypes = {
+  redoStackSize: PropTypes.number.isRequired,
+  ...commonPropTypes
 }
 
 export default (config = {}) => {
-  const store = {
-    getEditorState: undefined,
-    setEditorState: undefined
-  }
+  const store = new Store({
+    undoStackSize: 0,
+    redoStackSize: 0
+  })
+
+  let setEditorState
+  let getEditorState
 
   return {
-    initialize: ({getEditorState, setEditorState}) => {
-      console.log('undo button initialize')
-      store.getEditorState = getEditorState
-      store.setEditorState = setEditorState
+    initialize: (init) => {
+      getEditorState = init.getEditorState
+      setEditorState = init.setEditorState
+    },
+    onChange: (editorState) => {
+      store.setState({
+        undoStackSize: editorState.getUndoStack().size,
+        redoStackSize: editorState.getRedoStack().size
+      })
+    },
+    // Properties
+    customStyleMap: {
+      UNDO_STYLE: { color: 'white' }
     },
     // Components
-    UndoButton: editorToProps(UndoButton, (editorState) => ({
-      undoStackSize: editorState.getUndoStack().size,
-      onClick: () => store.setEditorState(EditorState.undo(store.getEditorState()))
-    }))
-    // UndoButton: editorToProps(UndoButton, (editorState) => ({
-    //   undoStackSize: editorState.getUndoStack().size,
-    //   onClick: () => store.setEditorState(EditorState.undo(store.getEditorState()))
-    // }))
+    UndoButton: store.withSubs(UndoButton, ['undoStackSize'], {
+      onClick: () => setEditorState(EditorState.undo(getEditorState()))
+    }),
+    RedoButton: store.withSubs(RedoButton, ['redoStackSize'], {
+      onClick: () => setEditorState(EditorState.redo(getEditorState()))
+    })
   }
 }
