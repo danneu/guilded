@@ -2,12 +2,21 @@
 import I from 'immutable'
 import {CharacterMetadata} from 'draft-js'
 
-CharacterMetadata.applyStyles = function applyStyle (record, styles) {
+// Draft.js only offers CharacterMetadata.{applyStyle,removeStyle}
+// and ContentStateInlineStyle.modifyInlineStyle. Notice that these
+// functions are singular as they take just one style.
+//
+// For better performance, I wanted plural versions of these functions.
+//
+// For example, when the user wants to add the "BLUE" style to a selection,
+// I want to remove any other colors in that selection first.
+
+CharacterMetadata.applyStyles = function applyStyles (record, styles) {
   var withStyle = record.set('style', record.getStyle().union(styles))
   return CharacterMetadata.create(withStyle)
 }
 
-CharacterMetadata.removeStyles = function removeStyle (record, styles) {
+CharacterMetadata.removeStyles = function removeStyles (record, styles) {
   var withoutStyle = record.set('style', record.getStyle().subtract(styles))
   return CharacterMetadata.create(withoutStyle)
 }

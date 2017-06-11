@@ -19,6 +19,7 @@ import './Draft.css'
 import './GuildEditor.css'
 import arrayChunk from 'array.chunk'
 import belt from './belt'
+import createBlockBreakoutPlugin from './plugins/block-breakout-plugin'
 
 import Perf from 'react-addons-perf'
 React.addons = {}
@@ -139,15 +140,28 @@ const makeKeyBindingFn = ({getEditorState}) => (e) => {
   return Draft.getDefaultKeyBinding(e)
 }
 
-const makeHandleReturn = ({getEditorState, onChange}) => (e) => {
-  console.log(`[handleRrturn]`)
-  const editorState = getEditorState()
-  if (!CodeUtils.hasSelectionInBlock(editorState)) {
-    return 'not-handled'
-  }
+const makeHandleReturn = ({ getEditorState, onChange }) => {
+  // FIXME: This temp hack only works since blockBreakoutPlugin defines
+  // this single handler. Would be annoying to do this manually for plugins
+  // that may have multiple hooks. But I don't want to use draft-js-plugin-editor
+  // yet.
+  const blockBreakoutPlugin = createBlockBreakoutPlugin({getEditorState, setEditorState: onChange})
 
-  onChange(CodeUtils.handleReturn(e, editorState))
-  return 'handled'
+  return (e) => {
+    console.log(`[handleReturn]`)
+    const editorState = getEditorState()
+
+    if (blockBreakoutPlugin.handleReturn(e) === 'handled') {
+      return 'handled'
+    }
+
+    if (!CodeUtils.hasSelectionInBlock(editorState)) {
+      return 'not-handled'
+    }
+
+    onChange(CodeUtils.handleReturn(e, editorState))
+    return 'handled'
+  }
 }
 
 const makeHandleTab = ({getEditorState, onChange}) => (e) => {
