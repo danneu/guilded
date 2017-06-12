@@ -2,4 +2,37 @@ body {
   margin: 0;
   padding: 20px;
   /*font-family: sans-serif;*/
+  font-size: 16px;
+}
+
+.TestEditor .DraftEditor-root {
+  overflow-y: scroll;
+  resize: vertical;
+  padding: 10px 5px 5px 5px;
+}
+
+.TestEditor-debugBlocks [data-block=true]{
+  outline: 3px inset blue;
+}
+
+.TestEditor-debugBlocks [data-block=true]:hover {
+  background-color: rgba(100, 50, 50, 0.1);
+}
+
+.EditorFooter:after {
+  display: block;
+  content: '';
+  clear: both;
+}
+.EditorFooter-Counters {
+  float: left;
+}
+.EditorFooter-DebugBox {
+  float: right;
+}
+
+[type=checkbox],
+label {
+  cursor: pointer;
+  font-weight: normal;
 }

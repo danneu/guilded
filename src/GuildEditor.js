@@ -17,11 +17,14 @@ import Draft, {
 import './Draft.css'
 import './GuildEditor.css'
 import arrayChunk from 'array.chunk'
-import belt from './belt'
+import {trimIndent} from './belt'
 import toAst from 'draft-js-ast-exporter'
 import pretty from 'pretty'
 import astToHtml from './astToHtml'
-import {getCurrentBlock} from './draft-js-extra'
+import {
+  getCurrentBlock,
+  getSelectedBlockKeys
+} from './draft-js-extra'
 import createBlockBreakoutPlugin from './plugins/block-breakout-plugin'
 import createCodePlugin from './plugins/code-plugin'
 
@@ -83,6 +86,7 @@ const blockRenderMap = DefaultDraftBlockRenderMap.merge(I.Map({
   }
 }))
 
+// selectedBlockKeys is I.Set or falsey
 const blockStyleFn = (block) => {
   let className = ''
   const data = block.getData()
@@ -281,14 +285,16 @@ class GuildEditor extends React.Component {
       }
     ])
 
-    const initContentState = ContentState.createFromText(belt.trimIndent(``))
+    const initContentState = ContentState.createFromText(trimIndent(``))
     const initEditorState = EditorState.createWithContent(initContentState, decorator)
 
     this.state = {
       editorState: initEditorState,
       showColorPicker: true,
-      showBlockBorders: true
+      showBlockBorders: true,
+      highlightSelectedBlocks: true
     }
+
     this.onChange = (editorState) => {
       this.setState({editorState})
     }
@@ -539,14 +545,15 @@ const SelectionDebug = (props) => {
     e.preventDefault()
     const {editorState} = props
     const selectionState = editorState.getSelection()
-    const contentState = editorState.getCurrentContent()
-    const contentBlock = contentState.getBlockForKey(selectionState.anchorKey)
+    const currentBlock = getCurrentBlock(editorState)
     const info = selectionState.toJS()
-    info.contentBlock = contentBlock.toJS()
+    info.contentBlock = currentBlock.toJS()
     info.startOffset = selectionState.getStartOffset()
     info.endOffset = selectionState.getEndOffset()
-    window.info = window
-    window.block = contentBlock
+    info.startKey = selectionState.getStartKey()
+    info.endKey = selectionState.getEndKey()
+    window.info = info
+    window.block = currentBlock
     console.log(info)
   }
   return (
@@ -592,6 +599,7 @@ class ListStyleControls extends React.PureComponent {
                 onMouseDown={onMouseDown}
                 active={active}
                 bsStyle={active ? 'primary' : 'default'}
+                bsSize='sm'
               >
                 {fa ? <i className={`fa fa-${fa}`} /> : label}
               </Button>
@@ -684,6 +692,7 @@ class FontStyleControls extends React.PureComponent {
                 key={font.key}
                 active={active}
                 bsStyle={active ? 'primary' : 'default'}
+                bsSize='sm'
                 onMouseDown={onMouseDown}
                 style={{fontFamily: font.full}}
               >
@@ -698,36 +707,6 @@ class FontStyleControls extends React.PureComponent {
 }
 
 // ////////////////////////////////////////////////////////
-
-// const COLORS = [
-//   // Pastel
-//   // 'f7976a', 'f9ad81', 'fdc68a', 'fff79a',
-//   'red1', 'orangered1', 'orange1', 'yellow1',
-//   // 'c4df9b', 'a2d39c', '82ca9d', '7bcdc8',
-//   'lime1', 'green1', 'forest1', 'teal1',
-//   // '6ecff6', '7ea7d8', '8493ca', '8882be',
-//   'sky1', 'blue1', 'navy1', 'indigo1',
-//   // 'a187be', 'bc8dbf', 'f49ac2', 'f6989d',
-//   'bluepurple1', 'purple1', 'pink1', 'redpink1',
-//   // Full
-//   // 'ed1c24', 'f26522', 'f7941d', 'fff200',
-//   'red2', 'orangered2', 'orange2', 'yellow2',
-//   // '8dc73f', '39b54a', '00a651', '00a99d',
-//   'lime2', 'green2', 'forest2', 'teal2',
-//   // '00aeef', '0072bc', '0054a6', '2e3192',
-//   'sky2', 'blue2', 'navy2', 'indigo2',
-//   // '662d91', '92278f', 'ec008c', 'ed145b',
-//   'bluepurple2', 'purple2', 'pink2', 'redpink2',
-//   // Dark
-//   // '9e0b0f', 'a0410d', 'a36209', 'aba000',
-//   'red3', 'orangered3', 'orange3', 'yellow3',
-//   // '598527', '1a7b30', '007236', '00746b',
-//   'lime3', 'green3', 'forest3', 'teal3',
-//   // '0076a3', '004b80', '003471', '1b1464',
-//   'sky3', 'blue3', 'navy3', 'indigo3',
-//   // '440e62', '630460', '9e005d', '9e0039'
-//   'bluepurple3', 'purple3', 'pink3', 'redpink3'
-// ]
 
 const COLORS = {
   red1: 'f7976a',
@@ -992,7 +971,7 @@ const HistoryControls = (props) => {
           }
 
           return (
-            <Button key={key} onMouseDown={onClick} disabled={disabled}>
+            <Button key={key} onMouseDown={onClick} disabled={disabled} bsSize='sm'>
               <i className={`fa fa-${fa}`} /> {label}
             </Button>
           )

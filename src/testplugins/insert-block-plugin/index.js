@@ -5,7 +5,7 @@ import {
   genKey,
   ContentBlock
 } from 'draft-js'
-import {insertBlockBefore, insertBlockAfter} from '../../draft-extra/insert-block'
+import {insertBlockBefore, insertBlockAfter} from '../../draft-js-extra/insertBlock'
 
 const InsertButton = (props) => {
   const {onClick, children, className} = props

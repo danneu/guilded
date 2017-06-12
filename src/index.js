@@ -5,6 +5,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import GuildEditor from './GuildEditor'
 import registerServiceWorker from './registerServiceWorker'
+import PropTypes from 'prop-types'
 
 import './index.css'
 
@@ -15,40 +16,52 @@ import {
   convertToRaw,
   convertFromHTML
 } from 'draft-js'
-import belt from './belt'
-import makeStatsPlugin from './testplugins/stats-plugin'
+import {trimIndent} from './belt'
+import {
+  getSelectedEntities,
+  getSelectedBlockKeys
+} from './draft-js-extra'
 import makeUndoPlugin from './testplugins/undo-plugin'
 import makeCodePlugin from './testplugins/code-plugin'
 import makeBlockBreakoutPlugin from './testplugins/block-breakout-plugin'
 import makeAutolinkPlugin from './testplugins/autolink-plugin'
 import makeInsertBlockPlugin from './testplugins/insert-block-plugin'
+import makeCounterPlugin from './testplugins/counter-plugin'
+import makeSeedPlugin from './testplugins/seed-plugin'
 
-const statsPlugin = makeStatsPlugin()
 const undoPlugin = makeUndoPlugin()
 const codePlugin = makeCodePlugin()
 const blockBreakoutPlugin = makeBlockBreakoutPlugin()
 const autolinkPlugin = makeAutolinkPlugin()
 const insertBlockPlugin = makeInsertBlockPlugin()
+const counterPlugin = makeCounterPlugin()
+const seedPlugin = makeSeedPlugin()
 
 const plugins = [
   autolinkPlugin,
-  statsPlugin,
   undoPlugin,
   codePlugin,
   blockBreakoutPlugin,
-  insertBlockPlugin
+  insertBlockPlugin,
+  counterPlugin,
+  seedPlugin
 ]
 
 // Plugin components
-const {Stats} = statsPlugin
 const {UndoButton, RedoButton} = undoPlugin
 const {InsertBeforeButton, InsertAfterButton} = insertBlockPlugin
+const {CharCount, LineCount, BlockCount} = counterPlugin
+const {SeedButton1} = seedPlugin
 
 class TestEditor extends React.Component {
+  static propTypes = {
+    debugBlocks: PropTypes.bool
+  }
+
   constructor (props) {
     super(props)
 
-    const blocksFromHtml = convertFromHTML(belt.trimIndent(`
+    const blocksFromHtml = convertFromHTML(trimIndent(`
       <h1>Hello</h1>
 
       <pre>This is a code block</pre>
@@ -63,7 +76,8 @@ class TestEditor extends React.Component {
 
     this.state = {
       // editorState: EditorState.createEmpty()
-      editorState: EditorState.createWithContent(state)
+      editorState: EditorState.createWithContent(state),
+      debugBlocks: true
     }
     this.onChange = (editorState) => this.setState({editorState})
   }
@@ -72,12 +86,26 @@ class TestEditor extends React.Component {
     const contentState = this.state.editorState.getCurrentContent()
     const jsonString = JSON.stringify(convertToRaw(contentState), null, 2)
 
+    let className = 'TestEditor'
+    if (this.state.debugBlocks) {
+      className += ' TestEditor-debugBlocks'
+    }
+
     return (
-      <div>
+      <div className={className}>
         <UndoButton />
         <RedoButton />
         <InsertBeforeButton />
         <InsertAfterButton />
+        <SeedButton1 />
+        <TestButton onClick={() => {
+          const keys = getSelectedBlockKeys(this.state.editorState).toArray()
+          const sel = this.state.editorState.getSelection()
+          console.log('keys', keys)
+          console.log('sel', sel.getStartOffset(), sel.getEndOffset(), sel.toJS())
+          window.sel = sel
+          const entities = getSelectedEntities(this.state.editorState)
+        }} />
         <div style={{border: '3px solid black'}}>
           <PluginEditor
             editorState={this.state.editorState}
@@ -85,13 +113,49 @@ class TestEditor extends React.Component {
             plugins={plugins}
             customStyleMap={{STYLE1: { textDecoration: 'underline' }}}
             placeholder='Click and begin typing'
+            blockStyleFn={(block) => {
+              let className = ''
+              if (block.getType() === 'code-block') {
+                className += ' scrollable'
+              }
+              return className
+            }}
           />
         </div>
-        <Stats />
+        <div className='EditorFooter'>
+          <div className='EditorFooter-Counters'>
+            Chars: <CharCount />, Lines: <LineCount />, Blocks: <BlockCount />
+          </div>
+          <div className='EditorFooter-DebugBox'>
+            <label className='form-label'>
+              <input
+                id='debugBlocks'
+                type='checkbox'
+                checked={this.state.debugBlocks}
+                onChange={(e) => {
+                  this.setState((state) => ({ debugBlocks: !state.debugBlocks }))
+                }}
+              />
+              &nbsp; Debug Blocks
+              </label>
+          </div>
+        </div>
         <pre>{jsonString}</pre>
       </div>
     )
   }
+}
+
+const TestButton = (props) => {
+  const onMouseDown = (e) => {
+    e.preventDefault()
+    props.onClick()
+  }
+  return (
+    <button onMouseDown={onMouseDown}>
+      Test
+    </button>
+  )
 }
 
 ReactDOM.render(<TestEditor />, document.getElementById('root'))

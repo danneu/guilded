@@ -20,13 +20,15 @@ class PluginEditor extends Component {
     textDirectionality: PropTypes.oneOf(['RTL', 'LTR']),
     readOnly: PropTypes.bool,
     spellCheck: PropTypes.bool,
-    stripPastedStyles: PropTypes.bool
+    stripPastedStyles: PropTypes.bool,
+    blockStyleFn: PropTypes.func
   }
 
   static defaultProps = {
     plugins: [],
     // Plugin customStyleMaps get merged into this
-    customStyleMap: {}
+    customStyleMap: {},
+    blockStyleFn: () => {}
   }
 
   constructor (props) {
@@ -154,7 +156,9 @@ class PluginEditor extends Component {
     }
 
     this.blockStyleFn = (contentBlock) => {
-      return this.plugins.find((plugin) => plugin.blockStyleFn(contentBlock))
+      let className = this.plugins.find((plugin) => plugin.blockStyleFn(contentBlock))
+      if (className) return className
+      return props.blockStyleFn(contentBlock)
     }
 
     this.customStyleFn = (inlineStyle, contentBlock) => {
