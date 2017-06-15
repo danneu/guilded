@@ -64,9 +64,14 @@ function renderNode ({type, key, depth, kids, data}, opts) {
 
   let string = astToHtml(kids, Object.assign({}, opts, { depth: opts.depth + 1 }))
 
-  // ignore empty nodes
   if (string.length === 0) {
-    return ''
+    if (type === 'unstyled') {
+      // empty unstyled blocks should act like newlines
+      string = '<br>'
+    } else {
+      // ignore empty non-unstyled nodes
+      return ''
+    }
   }
 
   // autolink everywhere except in code block
