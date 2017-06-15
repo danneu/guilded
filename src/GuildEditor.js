@@ -141,7 +141,7 @@ const makeHandleKeyCommand = ({ getEditorState, onChange }) => {
   const codePlugin = createCodePlugin({getEditorState, setEditorState: onChange})
 
   return (command) => {
-    // console.log(`[handleKeyCommand] command=${command}`)
+    console.log(`[handleKeyCommand] command=${command}`)
     if (codePlugin.handleKeyCommand(command) === 'handled') {
       return 'handled'
     }

@@ -99,12 +99,8 @@ class TestEditor extends React.Component {
         <InsertAfterButton />
         <SeedButton1 />
         <TestButton onClick={() => {
-          const keys = getSelectedBlockKeys(this.state.editorState).toArray()
-          const sel = this.state.editorState.getSelection()
-          console.log('keys', keys)
-          console.log('sel', sel.getStartOffset(), sel.getEndOffset(), sel.toJS())
-          window.sel = sel
           const entities = getSelectedEntities(this.state.editorState)
+          console.log(JSON.stringify(entities, null, 2))
         }} />
         <div style={{border: '3px solid black'}}>
           <PluginEditor
@@ -158,6 +154,6 @@ const TestButton = (props) => {
   )
 }
 
-ReactDOM.render(<TestEditor />, document.getElementById('root'))
-// ReactDOM.render(<GuildEditor />, document.getElementById('root'))
+// ReactDOM.render(<TestEditor />, document.getElementById('root'))
+ReactDOM.render(<GuildEditor />, document.getElementById('root'))
 registerServiceWorker()
